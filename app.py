@@ -71,7 +71,7 @@ def guardar_datos(datos_dict, nombre_hoja="INGRESOS"):
 
     fila = {}
 
-    # 1️⃣ Limpiar y convertir datos
+    # 1️⃣ Limpiar datos (CLAVE)
     for k, v in datos_dict.items():
         if isinstance(v, (datetime, pd.Timestamp)):
             fila[k] = v.strftime("%Y-%m-%d")
@@ -82,22 +82,35 @@ def guardar_datos(datos_dict, nombre_hoja="INGRESOS"):
         else:
             fila[k] = v
 
-    # 2️⃣ Calcular consecutivo N°
+    # 2️⃣ Leer hoja existente (si existe)
     try:
         df_existente = conn.read(worksheet=nombre_hoja)
-        siguiente = len(df_existente) + 1
+        if "N°" in df_existente.columns:
+            siguiente = int(df_existente["N°"].max()) + 1
+        else:
+            siguiente = len(df_existente) + 1
     except:
+        df_existente = pd.DataFrame()
         siguiente = 1
 
     fila["N°"] = siguiente
 
-    # 3️⃣ Convertir a DataFrame (UNA SOLA FILA)
-    df_fila = pd.DataFrame([fila])
+    # 3️⃣ Crear DataFrame final
+    df_nuevo = pd.DataFrame([fila])
 
-    # 4️⃣ Agregar a Google Sheets (🔥 NO borra nada)
-    conn.append(
+    if not df_existente.empty:
+        df_final = pd.concat([df_existente, df_nuevo], ignore_index=True)
+    else:
+        df_final = df_nuevo
+
+    # 4️⃣ Reordenar columnas
+    cols = ["N°"] + [c for c in df_final.columns if c != "N°"]
+    df_final = df_final[cols]
+
+    # 5️⃣ Escribir (seguro)
+    conn.update(
         worksheet=nombre_hoja,
-        data=df_fila
+        data=df_final
     )
 
     st.cache_data.clear()
@@ -407,4 +420,5 @@ elif st.session_state.menu_opcion == "Listado":
     except Exception as e:
         st.error(f"Error al cargar el listado: {e}")
         st.warning("Asegúrate de que la hoja 'INGRESOS' no esté vacía.")
+
 
