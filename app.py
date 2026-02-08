@@ -69,51 +69,49 @@ def calcular_edad_detallada(fecha_nac):
 
 def guardar_datos(datos_dict, nombre_hoja="INGRESOS"):
 
+    # 1️⃣ Limpiar datos
     fila = {}
-
-    # 1️⃣ Limpiar datos (CLAVE)
     for k, v in datos_dict.items():
-        if isinstance(v, (datetime, pd.Timestamp)):
-            fila[k] = v.strftime("%Y-%m-%d")
-        elif hasattr(v, "strftime"):  # date
+        if hasattr(v, "strftime"):
             fila[k] = v.strftime("%Y-%m-%d")
         elif isinstance(v, str):
             fila[k] = v.upper()
         else:
             fila[k] = v
 
-    # 2️⃣ Leer hoja existente (si existe)
+    # 2️⃣ Leer hoja existente
     try:
         df_existente = conn.read(worksheet=nombre_hoja)
-        if "N°" in df_existente.columns:
-            siguiente = int(df_existente["N°"].max()) + 1
-        else:
-            siguiente = len(df_existente) + 1
     except:
-        df_existente = pd.DataFrame()
-        siguiente = 1
+        st.error(f"La hoja {nombre_hoja} no existe en Google Sheets")
+        return
+
+    # 3️⃣ Calcular N°
+    if "N°" in df_existente.columns:
+        siguiente = int(df_existente["N°"].max()) + 1
+    else:
+        siguiente = len(df_existente) + 1
 
     fila["N°"] = siguiente
 
-    # 3️⃣ Crear DataFrame final
-    df_nuevo = pd.DataFrame([fila])
+    # 4️⃣ ADAPTAR fila al esquema de la hoja
+    columnas_hoja = list(df_existente.columns)
 
-    if not df_existente.empty:
-        df_final = pd.concat([df_existente, df_nuevo], ignore_index=True)
-    else:
-        df_final = df_nuevo
+    fila_final = {col: fila.get(col, "") for col in columnas_hoja}
 
-    # 4️⃣ Reordenar columnas
-    cols = ["N°"] + [c for c in df_final.columns if c != "N°"]
-    df_final = df_final[cols]
+    df_nuevo = pd.DataFrame([fila_final])
 
-    # 5️⃣ Escribir (seguro)
+    # 5️⃣ Concatenar sin romper estructura
+    df_final = pd.concat([df_existente, df_nuevo], ignore_index=True)
+
+    # 6️⃣ Actualizar (ahora sí permitido)
     conn.update(
         worksheet=nombre_hoja,
         data=df_final
     )
 
     st.cache_data.clear()
+
 
 # --- CSS PERSONALIZADO ---
 st.markdown("""
@@ -420,5 +418,6 @@ elif st.session_state.menu_opcion == "Listado":
     except Exception as e:
         st.error(f"Error al cargar el listado: {e}")
         st.warning("Asegúrate de que la hoja 'INGRESOS' no esté vacía.")
+
 
 
