@@ -68,26 +68,38 @@ def calcular_edad_detallada(fecha_nac):
     return f"{anios} AÑOS, {meses} MESES, {dias} DÍAS"
 
 def guardar_datos(datos_dict, nombre_hoja="INGRESOS"):
-    datos_mayuscula = {k: (v.upper() if isinstance(v, str) else v) for k, v in datos_dict.items()}
+
+    fila = {}
+
+    # 1️⃣ Limpiar y convertir datos
+    for k, v in datos_dict.items():
+        if isinstance(v, (datetime, pd.Timestamp)):
+            fila[k] = v.strftime("%Y-%m-%d")
+        elif hasattr(v, "strftime"):  # date
+            fila[k] = v.strftime("%Y-%m-%d")
+        elif isinstance(v, str):
+            fila[k] = v.upper()
+        else:
+            fila[k] = v
+
+    # 2️⃣ Calcular consecutivo N°
     try:
-        # Ahora lee desde Google Sheets
         df_existente = conn.read(worksheet=nombre_hoja)
+        siguiente = len(df_existente) + 1
     except:
-        df_existente = pd.DataFrame()
-    
-    if not df_existente.empty:
-        datos_mayuscula["N°"] = len(df_existente) + 1
-        df_nuevo = pd.DataFrame([datos_mayuscula])
-        df_final = pd.concat([df_existente, df_nuevo], ignore_index=True)
-    else:
-        datos_mayuscula["N°"] = 1
-        df_final = pd.DataFrame([datos_mayuscula])
-    
-    cols = ['N°'] + [c for c in df_final.columns if c != 'N°']
-    df_final = df_final[cols]
-    
-    # Guarda directamente en la hoja de Google
-    conn.update(worksheet=nombre_hoja, data=df_final)
+        siguiente = 1
+
+    fila["N°"] = siguiente
+
+    # 3️⃣ Convertir a DataFrame (UNA SOLA FILA)
+    df_fila = pd.DataFrame([fila])
+
+    # 4️⃣ Agregar a Google Sheets (🔥 NO borra nada)
+    conn.append(
+        worksheet=nombre_hoja,
+        data=df_fila
+    )
+
     st.cache_data.clear()
 
 # --- CSS PERSONALIZADO ---
@@ -395,3 +407,4 @@ elif st.session_state.menu_opcion == "Listado":
     except Exception as e:
         st.error(f"Error al cargar el listado: {e}")
         st.warning("Asegúrate de que la hoja 'INGRESOS' no esté vacía.")
+
