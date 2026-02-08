@@ -67,39 +67,28 @@ def calcular_edad_detallada(fecha_nac):
         meses += 12
     return f"{anios} AÑOS, {meses} MESES, {dias} DÍAS"
 
-import gspread
-
 def guardar_datos(datos_dict, nombre_hoja="INGRESOS"):
-    # Convertimos todo a mayúsculas como te gusta
     datos_mayuscula = {k: (v.upper() if isinstance(v, str) else v) for k, v in datos_dict.items()}
-    
     try:
-        # 1. Intentamos leer los datos actuales para el N°
+        # Ahora lee desde Google Sheets
         df_existente = conn.read(worksheet=nombre_hoja)
-        proximo_n = len(df_existente) + 1
     except:
-        proximo_n = 1
-
-    datos_mayuscula["N°"] = proximo_n
+        df_existente = pd.DataFrame()
     
-    # --- TRUCO PARA GUARDAR SIN JSON ---
-    # En lugar de conn.update (que te da el error), usaremos un método directo
-    try:
-        # Convertimos el diccionario a una lista de valores en el orden correcto
-        fila_nueva = list(datos_mayuscula.values())
-        
-        # Usamos st.write para que veas que los datos están listos mientras arreglamos el permiso
-        st.info("Intentando conexión alternativa...")
-        
-        # Si conn.update sigue fallando por la política de Google, 
-        # la solución definitiva para NO usar tarjeta es usar st.write y 
-        # descargar el CSV, o habilitar el 'Service Account' (pero eso pide tarjeta).
-        
-        # INTENTA ESTO ÚLTIMO con el link corto en Secrets:
-        conn.update(worksheet=nombre_hoja, data=pd.DataFrame([datos_mayuscula]))
-        st.success("¡Guardado exitoso!")
-    except Exception as e:
-        st.error(f"Error persistente: {e}")
+    if not df_existente.empty:
+        datos_mayuscula["N°"] = len(df_existente) + 1
+        df_nuevo = pd.DataFrame([datos_mayuscula])
+        df_final = pd.concat([df_existente, df_nuevo], ignore_index=True)
+    else:
+        datos_mayuscula["N°"] = 1
+        df_final = pd.DataFrame([datos_mayuscula])
+    
+    cols = ['N°'] + [c for c in df_final.columns if c != 'N°']
+    df_final = df_final[cols]
+    
+    # Guarda directamente en la hoja de Google
+    conn.update(worksheet=nombre_hoja, data=df_final)
+    st.cache_data.clear()
 
 # --- CSS PERSONALIZADO ---
 st.markdown("""
@@ -405,5 +394,4 @@ elif st.session_state.menu_opcion == "Listado":
 
     except Exception as e:
         st.error(f"Error al cargar el listado: {e}")
-
         st.warning("Asegúrate de que la hoja 'INGRESOS' no esté vacía.")
