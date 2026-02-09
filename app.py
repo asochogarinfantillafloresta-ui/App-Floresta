@@ -8,7 +8,10 @@ from datetime import datetime
 st.set_page_config(page_title="EIC La Floresta", layout="wide")
 
 # 2. CONEXIÓN A GOOGLE SHEETS
-conn = st.connection("gsheets", type=GSheetsConnection)
+df_test = conn.read()
+st.write(df_test.head())
+st.stop()
+#conn = st.connection("gsheets", type=GSheetsConnection)
               
 # --- SISTEMA DE ACCESO SIMPLE ---
 if 'autenticado' not in st.session_state:
@@ -437,6 +440,7 @@ elif st.session_state.menu_opcion == "Listado":
     except Exception as e:
         st.error("❌ Error al cargar el listado")
         st.exception(e)
+
 
 
 
