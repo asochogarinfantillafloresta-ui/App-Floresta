@@ -1,6 +1,6 @@
 import streamlit as st
 import pandas as pd
-from streamlit_gsheets import GSheetsConnection # <--- AGREGAR ESTA LÍNEA
+from streamlit_gsheets import GSheetsConnection
 import os
 from datetime import datetime
 
@@ -9,6 +9,8 @@ st.set_page_config(page_title="EIC La Floresta", layout="wide")
 
 # 2. CONEXIÓN A GOOGLE SHEETS
 conn = st.connection("gsheets", type=GSheetsConnection)
+SPREADSHEET_URL = "https://docs.google.com/spreadsheets/d/1iC5HihmFohbGf00SUC4Sdsyn9f66DwUSup5Ba5NNMyA/edit?gid=149634862#gid=149634862"
+
 
 # --- SISTEMA DE ACCESO SIMPLE ---
 if 'autenticado' not in st.session_state:
@@ -67,51 +69,34 @@ def calcular_edad_detallada(fecha_nac):
         meses += 12
     return f"{anios} AÑOS, {meses} MESES, {dias} DÍAS"
 
-def guardar_datos(datos_dict, nombre_hoja="INGRESOS"):
+def guardar_datos(nuevo_dict, nombre_hoja):
+    conn = st.connection("gsheets", type=GSheetsConnection)
 
-    # 1️⃣ Limpiar datos
-    fila = {}
-    for k, v in datos_dict.items():
-        if hasattr(v, "strftime"):
-            fila[k] = v.strftime("%Y-%m-%d")
-        elif isinstance(v, str):
-            fila[k] = v.upper()
-        else:
-            fila[k] = v
+    # 🔹 convertir dict → DataFrame de UNA fila
+    nuevo_df = pd.DataFrame([nuevo_dict])
 
-    # 2️⃣ Leer hoja existente
     try:
-        df_existente = conn.read(worksheet=nombre_hoja)
+        df_actual = conn.read(
+            spreadsheet=SPREADSHEET_URL,
+            worksheet=nombre_hoja
+        )
     except:
-        st.error(f"La hoja {nombre_hoja} no existe en Google Sheets")
-        return
+        df_actual = pd.DataFrame()
 
-    # 3️⃣ Calcular N°
-    if "N°" in df_existente.columns:
-        siguiente = int(df_existente["N°"].max()) + 1
+    if df_actual.empty:
+        nuevo_df.insert(0, "N°", 1)
+        df_final = nuevo_df
     else:
-        siguiente = len(df_existente) + 1
+        consecutivo = len(df_actual) + 1
+        nuevo_df.insert(0, "N°", consecutivo)
+        df_final = pd.concat([df_actual, nuevo_df], ignore_index=True)
 
-    fila["N°"] = siguiente
-
-    # 4️⃣ ADAPTAR fila al esquema de la hoja
-    columnas_hoja = list(df_existente.columns)
-
-    fila_final = {col: fila.get(col, "") for col in columnas_hoja}
-
-    df_nuevo = pd.DataFrame([fila_final])
-
-    # 5️⃣ Concatenar sin romper estructura
-    df_final = pd.concat([df_existente, df_nuevo], ignore_index=True)
-
-    # 6️⃣ Actualizar (ahora sí permitido)
     conn.update(
+        spreadsheet=SPREADSHEET_URL,
         worksheet=nombre_hoja,
         data=df_final
     )
-
     st.cache_data.clear()
-
 
 # --- CSS PERSONALIZADO ---
 st.markdown("""
@@ -200,9 +185,9 @@ with col_titulo: st.title("Asociación de Padres de Familia - Hogar Infantil La 
 if st.session_state.menu_opcion == "Inicio":
     st.header("📊 Cuadro de Control")
     try:
-        df_ing = conn.read(worksheet="INGRESOS")
+        df_ing = conn.read(spreadsheet=SPREADSHEET_URL, worksheet="INGRESOS")
         try:
-            df_ret = conn.read(worksheet="RETIROS")
+            df_ret = conn.read(spreadsheet=SPREADSHEET_URL, worksheet="RETIROS")
             ids_ret = df_ret["ID"].astype(str).tolist()
         except:
             ids_ret = []
@@ -326,9 +311,9 @@ elif st.session_state.menu_opcion == "Ingreso":
 elif st.session_state.menu_opcion == "Retiro":
     st.header("🚶 Gestión de Retiros")
     try:
-        df_ingresos = conn.read(worksheet="INGRESOS")
+        df_ingresos = conn.read(spreadsheet=SPREADSHEET_URL, worksheet="INGRESOS")
         try:
-            df_ret_existentes = conn.read(worksheet="RETIROS")
+            df_ret_existentes = conn.read(spreadsheet=SPREADSHEET_URL, worksheet="RETIROS")
             ids_retirados = df_ret_existentes["ID"].astype(str).tolist()
         except:
             ids_retirados = []
@@ -361,51 +346,98 @@ elif st.session_state.menu_opcion == "Retiro":
 # --- SECCIÓN: LISTADO ---
 elif st.session_state.menu_opcion == "Listado":
     st.header("📋 Base de Datos Completa")
+
     try:
-        # 1. Leer ambas hojas
-        df_ingresos = conn.read(worksheet="INGRESOS")
+        # 1. Leer INGRESOS
+        df_ingresos = conn.read(
+            spreadsheet=SPREADSHEET_URL,
+            worksheet="INGRESOS"
+        )
+
+        if df_ingresos is None or df_ingresos.empty:
+            st.warning("No hay registros aún.")
+            st.stop()
+
+        # 2. Leer RETIROS (si existe)
         try:
-            df_retirados = conn.read(worksheet="RETIROS")
-            ids_retirados = df_retirados["ID"].astype(str).tolist()
+            df_retirados = conn.read(
+                spreadsheet=SPREADSHEET_URL,
+                worksheet="RETIROS"
+            )
+
+            ids_retirados = (
+                df_retirados["ID"]
+                .astype(str)
+                .str.strip()
+                .str.replace(".0", "", regex=False)
+                .tolist()
+            )
+
         except:
             ids_retirados = []
 
-        # 2. Preparar el DataFrame para mostrar
+        # 3. Copia de trabajo
         df_mostrar = df_ingresos.copy()
+
+        # --- LIMPIEZAS IMPORTANTES ---
+
+        # ID PARTICIPANTE sin .000000
+        df_mostrar["ID PARTICIPANTE"] = (
+            df_mostrar["ID PARTICIPANTE"]
+            .astype(str)
+            .str.strip()
+            .str.replace(".0", "", regex=False)
+        )
         
-        # Calcular Edad Actual en tiempo real
-        df_mostrar['EDAD ACTUAL'] = pd.to_datetime(df_mostrar['FECHA NACIMIENTO']).apply(
-            lambda x: calcular_edad_detallada(x.date())
+        # TELEFONO sin .000000
+        df_mostrar["TELEFONO"] = (
+            df_mostrar["TELEFONO"]
+            .astype(str)
+            .str.replace(".0", "", regex=False)
         )
 
-        # 3. Filtros (Tal como los tenías)
+        # Recalcular consecutivo
+        df_mostrar = df_mostrar.reset_index(drop=True)
+        df_mostrar["N°"] = df_mostrar.index + 1
+
+        # Edad actual
+        df_mostrar["EDAD ACTUAL"] = pd.to_datetime(
+            df_mostrar["FECHA NACIMIENTO"]
+        ).apply(lambda x: calcular_edad_detallada(x.date()))
+
+        # 4. Filtros
         f1, f2 = st.columns(2)
         busq = f1.text_input("🔍 Buscar Nombre o ID")
-        uca_f = f2.multiselect("Filtrar por UCA", df_mostrar["UCA"].unique())
+        uca_f = f2.multiselect(
+            "Filtrar por UCA",
+            sorted(df_mostrar["UCA"].dropna().unique())
+        )
 
         if busq:
             df_mostrar = df_mostrar[
-                df_mostrar["NOMBRE PARTICIPANTE"].str.contains(busq.upper()) | 
-                df_mostrar["ID PARTICIPANTE"].astype(str).str.contains(busq)
+                df_mostrar["NOMBRE PARTICIPANTE"].str.contains(busq.upper(), na=False) |
+                df_mostrar["ID PARTICIPANTE"].str.contains(busq)
             ]
-        
+
         if uca_f:
             df_mostrar = df_mostrar[df_mostrar["UCA"].isin(uca_f)]
 
-        # 4. FUNCIÓN DE SOMBREADO (La lógica que faltaba)
+        # 5. Estilo de retirados
         def color_retiro(row):
-            # Si el ID del participante está en la lista de retirados, pintar de rojo claro
-            if str(row['ID PARTICIPANTE']) in ids_retirados:
-                return ['background-color: #FFEBEE'] * len(row)
-            return [''] * len(row)
+            if row["ID PARTICIPANTE"] in ids_retirados:
+                return ["background-color: #FFEBEE"] * len(row)
+            return [""] * len(row)
 
-        # 5. Mostrar tabla con estilo
         st.write("💡 *Las filas en rojo representan participantes retirados.*")
+
         st.dataframe(
-            df_mostrar.style.apply(color_retiro, axis=1), 
+            df_mostrar.style.apply(color_retiro, axis=1),
             use_container_width=True,
             height=600
         )
+
+    except Exception as e:
+        st.error(f"Error al cargar el listado: {e}")
 
         # Botón de descarga
         st.download_button(
@@ -418,6 +450,7 @@ elif st.session_state.menu_opcion == "Listado":
     except Exception as e:
         st.error(f"Error al cargar el listado: {e}")
         st.warning("Asegúrate de que la hoja 'INGRESOS' no esté vacía.")
+
 
 
 
