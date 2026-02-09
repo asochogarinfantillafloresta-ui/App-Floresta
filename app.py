@@ -177,7 +177,7 @@ with st.sidebar:
 
 # --- ENCABEZADO ---
 col_logo, col_titulo = st.columns([1, 4])
-#with col_logo: st.image("EIC.jpg", width=150)
+with col_logo: st.image("EIC.jpg", width=150)
 with col_titulo: st.title("Asociación de Padres de Familia - Hogar Infantil La Floresta")
 
 # --- SECCIÓN: INICIO ---
@@ -448,6 +448,7 @@ elif st.session_state.menu_opcion == "Listado":
     except Exception as e:
         st.error("❌ Error al cargar el listado")
         st.exception(e)
+
 
 
 
