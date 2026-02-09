@@ -359,13 +359,12 @@ elif st.session_state.menu_opcion == "Listado":
             st.warning("No hay registros aún.")
             st.stop()
 
-        # 2. Leer RETIROS (si existe)
+        # 2. Leer RETIROS
         try:
             df_retirados = conn.read(
                 spreadsheet=SPREADSHEET_URL,
                 worksheet="RETIROS"
             )
-
             ids_retirados = (
                 df_retirados["ID"]
                 .astype(str)
@@ -373,31 +372,28 @@ elif st.session_state.menu_opcion == "Listado":
                 .str.replace(".0", "", regex=False)
                 .tolist()
             )
-
         except:
             ids_retirados = []
 
         # 3. Copia de trabajo
         df_mostrar = df_ingresos.copy()
 
-        # --- LIMPIEZAS IMPORTANTES ---
-
-        # ID PARTICIPANTE sin .000000
+        # Limpieza de ID
         df_mostrar["ID PARTICIPANTE"] = (
             df_mostrar["ID PARTICIPANTE"]
             .astype(str)
             .str.strip()
             .str.replace(".0", "", regex=False)
         )
-        
-        # TELEFONO sin .000000
+
+        # Limpieza teléfono
         df_mostrar["TELEFONO"] = (
             df_mostrar["TELEFONO"]
             .astype(str)
             .str.replace(".0", "", regex=False)
         )
 
-        # Recalcular consecutivo
+        # Recalcular N°
         df_mostrar = df_mostrar.reset_index(drop=True)
         df_mostrar["N°"] = df_mostrar.index + 1
 
@@ -406,7 +402,7 @@ elif st.session_state.menu_opcion == "Listado":
             df_mostrar["FECHA NACIMIENTO"]
         ).apply(lambda x: calcular_edad_detallada(x.date()))
 
-        # 4. Filtros
+        # Filtros
         f1, f2 = st.columns(2)
         busq = f1.text_input("🔍 Buscar Nombre o ID")
         uca_f = f2.multiselect(
@@ -423,7 +419,7 @@ elif st.session_state.menu_opcion == "Listado":
         if uca_f:
             df_mostrar = df_mostrar[df_mostrar["UCA"].isin(uca_f)]
 
-        # 5. Estilo de retirados
+        # Estilo de retirados
         def color_retiro(row):
             if row["ID PARTICIPANTE"] in ids_retirados:
                 return ["background-color: #FFEBEE"] * len(row)
@@ -437,20 +433,18 @@ elif st.session_state.menu_opcion == "Listado":
             height=600
         )
 
-    except Exception as e:
-        st.error(f"Error al cargar el listado: {e}")
-
-        # Botón de descarga
+        # ⬇️ DESCARGA (SOLO SI TODO SALIÓ BIEN)
         st.download_button(
-          label="⬇️ Descargar CSV",
-          data=df_mostrar.to_csv(index=False),
-          file_name="base_datos.csv",
-          mime="text/csv"
+            "⬇️ Descargar CSV",
+            df_mostrar.to_csv(index=False),
+            "base_datos.csv",
+            "text/csv"
         )
 
     except Exception as e:
-        st.error(f"Error al cargar el listado: {e}")
-        st.warning("Asegúrate de que la hoja 'INGRESOS' no esté vacía.")
+        st.error("❌ Error al cargar el listado")
+        st.exception(e)
+
 
 
 
