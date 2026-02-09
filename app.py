@@ -9,7 +9,8 @@ st.set_page_config(page_title="EIC La Floresta", layout="wide")
 
 # 2. CONEXIÓN A GOOGLE SHEETS
 conn = st.connection("gsheets", type=GSheetsConnection)
-SPREADSHEET_URL = "https://docs.google.com/spreadsheets/d/1iC5HihmFohbGf00SUC4Sdsyn9f66DwUSup5Ba5NNMyA/edit?gid=149634862#gid=149634862"
+SPREADSHEET_URL = "https://docs.google.com/spreadsheets/d/1iC5HihmFohbGf00SUC4Sdsyn9f66DwUSup5Ba5NNMyA/edit?usp=sharing"
+                
 
 
 # --- SISTEMA DE ACCESO SIMPLE ---
@@ -450,6 +451,7 @@ elif st.session_state.menu_opcion == "Listado":
     except Exception as e:
         st.error(f"Error al cargar el listado: {e}")
         st.warning("Asegúrate de que la hoja 'INGRESOS' no esté vacía.")
+
 
 
 
