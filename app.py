@@ -442,15 +442,16 @@ elif st.session_state.menu_opcion == "Listado":
 
         # Botón de descarga
         st.download_button(
-            "📥 Descargar Base de Datos (CSV)", 
-            df_mostrar.to_csv(index=False).encode('utf-8'), 
-            "Base_Floresta.csv", 
-            "text/csv"
+          label="⬇️ Descargar CSV",
+          data=df_mostrar.to_csv(index=False),
+          file_name="base_datos.csv",
+          mime="text/csv"
         )
 
     except Exception as e:
         st.error(f"Error al cargar el listado: {e}")
         st.warning("Asegúrate de que la hoja 'INGRESOS' no esté vacía.")
+
 
 
 
