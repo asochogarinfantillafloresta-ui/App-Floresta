@@ -9,9 +9,9 @@ st.set_page_config(page_title="EIC La Floresta", layout="wide")
 
 # 2. CONEXIÓN A GOOGLE SHEETS
 conn = st.connection("gsheets", type=GSheetsConnection)
-df_test = conn.read()
-st.write(df_test.head())
-st.stop()
+#df_test = conn.read()
+#st.write(df_test.head())
+#st.stop()
               
 # --- SISTEMA DE ACCESO SIMPLE ---
 if 'autenticado' not in st.session_state:
@@ -184,9 +184,13 @@ with col_titulo: st.title("Asociación de Padres de Familia - Hogar Infantil La 
 if st.session_state.menu_opcion == "Inicio":
     st.header("📊 Cuadro de Control")
     try:
-        df_ing = conn.read(worksheet="INGRESOS")
+        df_ing = conn.read(
+          worksheet="INGRESOS"
+        )
         try:
-            df_ret = conn.read(worksheet="RETIROS")
+            df_ret = conn.read(
+              worksheet="RETIROS"
+            )
             ids_ret = df_ret["ID"].astype(str).tolist()
         except:
             ids_ret = []
@@ -440,6 +444,7 @@ elif st.session_state.menu_opcion == "Listado":
     except Exception as e:
         st.error("❌ Error al cargar el listado")
         st.exception(e)
+
 
 
 
