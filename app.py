@@ -9,10 +9,7 @@ st.set_page_config(page_title="EIC La Floresta", layout="wide")
 
 # 2. CONEXIÓN A GOOGLE SHEETS
 conn = st.connection("gsheets", type=GSheetsConnection)
-SPREADSHEET_URL = "https://docs.google.com/spreadsheets/d/1iC5HihmFohbGf00SUC4Sdsyn9f66DwUSup5Ba5NNMyA/edit?usp=sharing"
-                
-
-
+              
 # --- SISTEMA DE ACCESO SIMPLE ---
 if 'autenticado' not in st.session_state:
     st.session_state.autenticado = False
@@ -78,7 +75,6 @@ def guardar_datos(nuevo_dict, nombre_hoja):
 
     try:
         df_actual = conn.read(
-            spreadsheet=SPREADSHEET_URL,
             worksheet=nombre_hoja
         )
     except:
@@ -93,7 +89,6 @@ def guardar_datos(nuevo_dict, nombre_hoja):
         df_final = pd.concat([df_actual, nuevo_df], ignore_index=True)
 
     conn.update(
-        spreadsheet=SPREADSHEET_URL,
         worksheet=nombre_hoja,
         data=df_final
     )
@@ -186,9 +181,9 @@ with col_titulo: st.title("Asociación de Padres de Familia - Hogar Infantil La 
 if st.session_state.menu_opcion == "Inicio":
     st.header("📊 Cuadro de Control")
     try:
-        df_ing = conn.read(spreadsheet=SPREADSHEET_URL, worksheet="INGRESOS")
+        df_ing = conn.read(worksheet="INGRESOS")
         try:
-            df_ret = conn.read(spreadsheet=SPREADSHEET_URL, worksheet="RETIROS")
+            df_ret = conn.read(worksheet="RETIROS")
             ids_ret = df_ret["ID"].astype(str).tolist()
         except:
             ids_ret = []
@@ -312,9 +307,9 @@ elif st.session_state.menu_opcion == "Ingreso":
 elif st.session_state.menu_opcion == "Retiro":
     st.header("🚶 Gestión de Retiros")
     try:
-        df_ingresos = conn.read(spreadsheet=SPREADSHEET_URL, worksheet="INGRESOS")
+        df_ingresos = conn.read(worksheet="INGRESOS")
         try:
-            df_ret_existentes = conn.read(spreadsheet=SPREADSHEET_URL, worksheet="RETIROS")
+            df_ret_existentes = conn.read(worksheet="RETIROS")
             ids_retirados = df_ret_existentes["ID"].astype(str).tolist()
         except:
             ids_retirados = []
@@ -351,7 +346,6 @@ elif st.session_state.menu_opcion == "Listado":
     try:
         # 1. Leer INGRESOS
         df_ingresos = conn.read(
-            spreadsheet=SPREADSHEET_URL,
             worksheet="INGRESOS"
         )
 
@@ -362,7 +356,6 @@ elif st.session_state.menu_opcion == "Listado":
         # 2. Leer RETIROS
         try:
             df_retirados = conn.read(
-                spreadsheet=SPREADSHEET_URL,
                 worksheet="RETIROS"
             )
             ids_retirados = (
@@ -444,6 +437,7 @@ elif st.session_state.menu_opcion == "Listado":
     except Exception as e:
         st.error("❌ Error al cargar el listado")
         st.exception(e)
+
 
 
 
