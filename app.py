@@ -184,9 +184,13 @@ with col_titulo: st.title("Asociación de Padres de Familia - Hogar Infantil La 
 if st.session_state.menu_opcion == "Inicio":
     st.header("📊 Cuadro de Control")
     try:
-        df_ing = conn.read(
-          worksheet="INGRESOS"
+        df_ing = conn.read(worksheet="INGRESOS")
+        st.write("DEBUG INGRESOS", df_ing.head()
         )
+    except Exception as e:
+        st.error("Error leyendo INGRESOS")
+        st.exception(e)
+        st.stop()
         try:
             df_ret = conn.read(
               worksheet="RETIROS"
@@ -444,6 +448,7 @@ elif st.session_state.menu_opcion == "Listado":
     except Exception as e:
         st.error("❌ Error al cargar el listado")
         st.exception(e)
+
 
 
 
