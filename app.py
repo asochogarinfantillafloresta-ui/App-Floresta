@@ -9,10 +9,9 @@ st.set_page_config(page_title="EIC La Floresta", layout="wide")
 
 # 2. CONEXIÓN A GOOGLE SHEETS
 conn = st.connection("gsheets", type=GSheetsConnection)
-#df_test = conn.read()
-#st.write(df_test.head())
-#st.stop()
-              
+SPREADSHEET_URL = "https://docs.google.com/spreadsheets/d/1iC5HihmFohbGf00SUC4Sdsyn9f66DwUSup5Ba5NNMyA/edit?gid=149634862#gid=149634862"
+
+
 # --- SISTEMA DE ACCESO SIMPLE ---
 if 'autenticado' not in st.session_state:
     st.session_state.autenticado = False
@@ -78,6 +77,7 @@ def guardar_datos(nuevo_dict, nombre_hoja):
 
     try:
         df_actual = conn.read(
+            spreadsheet=SPREADSHEET_URL,
             worksheet=nombre_hoja
         )
     except:
@@ -92,6 +92,7 @@ def guardar_datos(nuevo_dict, nombre_hoja):
         df_final = pd.concat([df_actual, nuevo_df], ignore_index=True)
 
     conn.update(
+        spreadsheet=SPREADSHEET_URL,
         worksheet=nombre_hoja,
         data=df_final
     )
@@ -184,17 +185,9 @@ with col_titulo: st.title("Asociación de Padres de Familia - Hogar Infantil La 
 if st.session_state.menu_opcion == "Inicio":
     st.header("📊 Cuadro de Control")
     try:
-        df_ing = conn.read(worksheet="INGRESOS")
-        st.write("DEBUG INGRESOS", df_ing.head()
-        )
-    except Exception as e:
-        st.error("Error leyendo INGRESOS")
-        st.exception(e)
-        st.stop()
+        df_ing = conn.read(worksheet="INGRESOS", ttl=0) # ttl=0 evita que use datos viejos guardados
         try:
-            df_ret = conn.read(
-              worksheet="RETIROS"
-            )
+            df_ing = conn.read(worksheet="RETIROS", ttl=0) # ttl=0 evita que use datos viejos guardados
             ids_ret = df_ret["ID"].astype(str).tolist()
         except:
             ids_ret = []
@@ -318,9 +311,9 @@ elif st.session_state.menu_opcion == "Ingreso":
 elif st.session_state.menu_opcion == "Retiro":
     st.header("🚶 Gestión de Retiros")
     try:
-        df_ingresos = conn.read(worksheet="INGRESOS")
+        df_ingresos = conn.read(spreadsheet=SPREADSHEET_URL, worksheet="INGRESOS")
         try:
-            df_ret_existentes = conn.read(worksheet="RETIROS")
+            df_ret_existentes = conn.read(spreadsheet=SPREADSHEET_URL, worksheet="RETIROS")
             ids_retirados = df_ret_existentes["ID"].astype(str).tolist()
         except:
             ids_retirados = []
@@ -357,6 +350,7 @@ elif st.session_state.menu_opcion == "Listado":
     try:
         # 1. Leer INGRESOS
         df_ingresos = conn.read(
+            spreadsheet=SPREADSHEET_URL,
             worksheet="INGRESOS"
         )
 
@@ -364,11 +358,13 @@ elif st.session_state.menu_opcion == "Listado":
             st.warning("No hay registros aún.")
             st.stop()
 
-        # 2. Leer RETIROS
+        # 2. Leer RETIROS (si existe)
         try:
             df_retirados = conn.read(
+                spreadsheet=SPREADSHEET_URL,
                 worksheet="RETIROS"
             )
+
             ids_retirados = (
                 df_retirados["ID"]
                 .astype(str)
@@ -376,28 +372,31 @@ elif st.session_state.menu_opcion == "Listado":
                 .str.replace(".0", "", regex=False)
                 .tolist()
             )
+
         except:
             ids_retirados = []
 
         # 3. Copia de trabajo
         df_mostrar = df_ingresos.copy()
 
-        # Limpieza de ID
+        # --- LIMPIEZAS IMPORTANTES ---
+
+        # ID PARTICIPANTE sin .000000
         df_mostrar["ID PARTICIPANTE"] = (
             df_mostrar["ID PARTICIPANTE"]
             .astype(str)
             .str.strip()
             .str.replace(".0", "", regex=False)
         )
-
-        # Limpieza teléfono
+        
+        # TELEFONO sin .000000
         df_mostrar["TELEFONO"] = (
             df_mostrar["TELEFONO"]
             .astype(str)
             .str.replace(".0", "", regex=False)
         )
 
-        # Recalcular N°
+        # Recalcular consecutivo
         df_mostrar = df_mostrar.reset_index(drop=True)
         df_mostrar["N°"] = df_mostrar.index + 1
 
@@ -406,7 +405,7 @@ elif st.session_state.menu_opcion == "Listado":
             df_mostrar["FECHA NACIMIENTO"]
         ).apply(lambda x: calcular_edad_detallada(x.date()))
 
-        # Filtros
+        # 4. Filtros
         f1, f2 = st.columns(2)
         busq = f1.text_input("🔍 Buscar Nombre o ID")
         uca_f = f2.multiselect(
@@ -423,7 +422,7 @@ elif st.session_state.menu_opcion == "Listado":
         if uca_f:
             df_mostrar = df_mostrar[df_mostrar["UCA"].isin(uca_f)]
 
-        # Estilo de retirados
+        # 5. Estilo de retirados
         def color_retiro(row):
             if row["ID PARTICIPANTE"] in ids_retirados:
                 return ["background-color: #FFEBEE"] * len(row)
@@ -437,17 +436,20 @@ elif st.session_state.menu_opcion == "Listado":
             height=600
         )
 
-        # ⬇️ DESCARGA (SOLO SI TODO SALIÓ BIEN)
+    except Exception as e:
+        st.error(f"Error al cargar el listado: {e}")
+
+        # Botón de descarga
         st.download_button(
-            "⬇️ Descargar CSV",
-            df_mostrar.to_csv(index=False),
-            "base_datos.csv",
+            "📥 Descargar Base de Datos (CSV)", 
+            df_mostrar.to_csv(index=False).encode('utf-8'), 
+            "Base_Floresta.csv", 
             "text/csv"
         )
 
     except Exception as e:
-        st.error("❌ Error al cargar el listado")
-        st.exception(e)
+        st.error(f"Error al cargar el listado: {e}")
+        st.warning("Asegúrate de que la hoja 'INGRESOS' no esté vacía.")
 
 
 
