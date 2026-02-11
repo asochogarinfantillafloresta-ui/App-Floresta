@@ -234,10 +234,16 @@ elif st.session_state.menu_opcion == "Ingreso":
 
     direccion = st.text_input("DIRECCIÓN COMPLETA", value="KDX ").upper()
 
+    # --- DEFINICIÓN DE RANGOS PARA ADULTOS ---
+    min_adulto = datetime(1920, 1, 1)
+    max_adulto = datetime.today()
+    fecha_defecto = datetime(1990, 1, 1) # Un punto medio más práctico
+
     # LÓGICA DE FAMILIA
     es_menor_gestante = (tipo_persona == "MADRE GESTANTE" and tipo_doc == "TI")
     necesita_acudiente = (tipo_persona in ["NIÑO", "NIÑA"]) or es_menor_gestante
     necesita_padres = (tipo_persona in ["NIÑO", "NIÑA"]) 
+
     if necesita_acudiente:
         st.subheader("👨‍👩‍👧 Información del Responsable")
         with st.expander("Datos del Responsable", expanded=True):
@@ -246,7 +252,7 @@ elif st.session_state.menu_opcion == "Ingreso":
             tp_doc_acu = a_c1.selectbox("Tipo Doc Acu.", ["CC", "TI", "CE", "PPT"])
             id_acu = a_c2.text_input("N° Documento Acu.")
             parentesco = a_c2.selectbox("Parentesco", ["MADRE", "PADRE", "ABUELOS", "TIOS", "OTRO"])
-            f_nac_acu = a_c3.date_input("Fecha Nac Acu.", value=datetime(1940, 1, 1))
+            f_nac_acu = a_c3.date_input("Fecha Nac Acu.", value=fecha_defecto, min_value=min_adulto, max_value=max_adulto)
             l_nac_acu = a_c3.text_input("Lugar Nac Acu.").upper()
 
         if necesita_padres:
@@ -261,7 +267,7 @@ elif st.session_state.menu_opcion == "Ingreso":
                     nombre_p = p_c1.text_input("Nombre del Padre", value=val_p_nom).upper()
                     id_p = p_c1.text_input("ID Padre", value=val_p_id)
                     tp_doc_p = p_c2.selectbox("Tipo Doc Padre", ["CC", "TI", "CE", "PPT"], index=val_p_doc)
-                    f_nac_p = p_c2.date_input("Fecha Padre", value=f_nac_acu if parentesco == "PADRE" else datetime(1940, 1, 1))
+                    f_nac_p = p_c2.date_input("Fecha Padre", value=f_nac_acu if parentesco == "PADRE" else fecha_defecto, min_value=min_adulto,  max_value=max_adulto)
                     l_nac_p = st.text_input("Lugar Nacimiento Padre", value=l_nac_acu if parentesco == "PADRE" else "").upper()
                 
                 val_m_nom = nombre_acu if parentesco == "MADRE" else "" 
@@ -273,7 +279,7 @@ elif st.session_state.menu_opcion == "Ingreso":
                     nombre_m = m_c1.text_input("Nombre de la Madre", value=val_m_nom).upper()
                     id_m = m_c1.text_input("ID Madre", value=val_m_id)
                     tp_doc_m = m_c2.selectbox("Tipo Doc Madre", ["CC", "TI", "CE", "PPT"], index=val_m_doc)
-                    f_nac_m = m_c2.date_input("Fecha Madre", value=f_nac_acu if parentesco == "MADRE" else datetime(1940, 1, 1))
+                    f_nac_m = m_c2.date_input("Fecha Madre", value=f_nac_acu if parentesco == "MADRE" else fecha_defecto, min_value=min_adulto,max_value=max_adulto)
                     l_nac_m = st.text_input("Lugar Madre", value=l_nac_acu if parentesco == "MADRE" else "").upper()
         else:
             nombre_p = id_p = tp_doc_p = f_nac_p = l_nac_p = "NO APLICA"
@@ -452,4 +458,5 @@ elif st.session_state.menu_opcion == "Listado":
         st.warning("Asegúrate de que la hoja 'INGRESOS' no esté vacía.")
 
      
+
 
