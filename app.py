@@ -20,7 +20,7 @@ if not st.session_state.autenticado:
     st.title("🔑 Acceso Docentes - La Floresta")
     password = st.text_input("Introduce la clave de acceso:", type="password")
     if st.button("Entrar"):
-        if password == "Floresta2026":
+        if password == "Floresta":
             st.session_state.autenticado = True
             st.rerun()
         else:
@@ -458,5 +458,6 @@ elif st.session_state.menu_opcion == "Listado":
         st.warning("Asegúrate de que la hoja 'INGRESOS' no esté vacía.")
 
      
+
 
 
